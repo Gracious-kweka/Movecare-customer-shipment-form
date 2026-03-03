@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shipment Management Portal | MoveCare</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #001f3f;
+      --accent: #ff4d4d;
+      --glass: rgba(255, 255, 255, 0.98);
+      --success: #27ae60;
+      --error-red: #ff4d4d;
+    }
+
+    body {
+      background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      margin: 0;
+      padding: 10px;
+      min-height: 100vh;
+    }
+
+    /* Step Tracker */
+    .step-wizard {
+      max-width: 900px;
+      margin: 20px auto;
+      display: flex;
+      justify-content: space-between;
+      color: white;
+    }
+    .step-item { text-align: center; flex: 1; opacity: 0.4; font-size: 0.7rem; transition: 0.3s; }
+    .step-item.active { opacity: 1; font-weight: bold; transform: scale(1.1); }
+    .step-item i { display: block; font-size: 1.2rem; margin-bottom: 5px; }
+
+    .main-portal {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: var(--glass);
+      border-radius: 20px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sidebar-stats {
+      background: #e9ecef;
+      padding: 15px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      border-bottom: 2px solid #ddd;
+    }
+    .stat-card { text-align: center; border-right: 1px solid #ccc; }
+    .stat-card:last-child { border-right: none; }
+    .stat-card span { display: block; font-size: 0.65rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .stat-card strong { font-size: 1rem; color: var(--primary); }
+
+    .form-section { padding: 30px; display: none; min-height: 350px; }
+    .form-section.active { display: block; animation: slideIn 0.4s ease; }
+
+    @keyframes slideIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+
+    .grid-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+    label { font-size: 0.75rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 5px; text-transform: uppercase; }
+   
+    input, select, textarea {
+      width: 100%; padding: 12px; border: 1.5px solid #dcdde1; border-radius: 8px; font-size: 1rem; box-sizing: border-box;
+      transition: border-color 0.3s ease;
+    }
+
+    input.invalid, select.invalid, textarea.invalid {
+      border-color: var(--error-red) !important;
+      background-color: #fff8f8;
+    }
+
+    /* Result Screen Styling */
+    #resultScreen {
+        text-align: center;
+        padding: 50px 20px;
+        display: none;
+    }
+    .result-icon { font-size: 5rem; margin-bottom: 20px; }
+    .success-icon { color: var(--success); }
+    .error-icon { color: var(--error-red); }
+    .countdown-timer { margin-top: 30px; font-size: 0.8rem; color: #777; font-style: italic; }
+
+    .cargo-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    .cargo-table th { background: var(--primary); color: white; padding: 12px; font-size: 0.75rem; text-align: left; }
+    .cargo-table td { padding: 10px; border-bottom: 1px solid #eee; }
+
+    .photo-upload-zone {
+      border: 2px dashed #001f3f; padding: 20px; text-align: center; border-radius: 12px; background: #f0f7ff; cursor: pointer; margin-top: 20px;
+    }
+    .photo-preview-container { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+    .preview-img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+    @media (max-width: 600px) {
+      .cargo-table, .cargo-table thead, .cargo-table tbody, .cargo-table th, .cargo-table td, .cargo-table tr { display: block; }
+      .cargo-table thead { display: none; }
+      .cargo-table tr { background: #fff; border: 1px solid #ddd; border-radius: 12px; margin-bottom: 10px; padding: 10px; }
+      .cargo-table td { display: flex; justify-content: space-between; align-items: center; border: none; padding: 5px 0; }
+      .cargo-table td::before { content: attr(data-label); font-weight: bold; color: var(--primary); font-size: 0.8rem; }
+      .cargo-table td input { width: 60%; }
+    }
+
+    .btn-add { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; }
+    .nav-buttons { padding: 20px 30px; background: #fafafa; display: flex; justify-content: space-between; gap: 10px; }
+    .btn { padding: 15px 25px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; flex: 1; max-width: 200px; }
+    .btn-next { background: var(--accent); color: white; }
+    .btn-prev { background: #dcdde1; color: #2f3640; }
+
+    .sms-alert {
+      position: fixed; top: 20px; right: -400px; width: 280px; background: white; border-left: 8px solid var(--success);
+      padding: 15px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); transition: right 0.5s ease; z-index: 2000;
+    }
+    .sms-alert.show { right: 10px; }
+  </style>
+</head>
+<body>
+
+  <div id="smsNotification" class="sms-alert">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <i class="fa-solid fa-bell" style="font-size: 1.5rem; color: var(--success);"></i>
+      <div>
+        <strong id="smsTitle">Notification</strong>
+        <p id="smsBody" style="margin: 3px 0 0; font-size: 0.75rem; color: #444;"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-wizard" id="wizardBar">
+    <div class="step-item active" id="s1"><i class="fa-solid fa-user"></i>Client</div>
+    <div class="step-item" id="s2"><i class="fa-solid fa-truck"></i>Route</div>
+    <div class="step-item" id="s3"><i class="fa-solid fa-box-open"></i>Cargo</div>
+    <div class="step-item" id="s4"><i class="fa-solid fa-check-circle"></i>Finish</div>
+  </div>
+
+  <div class="main-portal">
+    <div class="sidebar-stats" id="statsBar">
+      <div class="stat-card"><span>Live Weight Status</span><strong id="liveWeight">0 kg</strong></div>
+      <div class="stat-card"><span>Service Selection</span><strong id="liveService">Standard</strong></div>
+    </div>
+
+    <form id="megaForm">
+      <div class="form-section active" id="step1">
+        <h3 style="color: var(--primary);">Step 1: Stakeholder Details</h3>
+        <div class="grid-layout">
+          <div><label>Customer Name / Company</label><input type="text" id="custName" required placeholder="Full Name"></div>
+          <div><label>Phone Number (Global Format)</label><input type="tel" id="custPhone" required placeholder="+255 700 000 000" oninput="validatePhone(this)"></div>
+          <div><label>Corporate Email</label><input type="email" required placeholder="email@domain.com"></div>
+        </div>
+      </div>
+
+      <div class="form-section" id="step2">
+        <h3 style="color: var(--primary);">Step 2: Logistics Route</h3>
+        <div class="grid-layout">
+          <div><label>Origin Address</label><input type="text" required placeholder="Pickup City"></div>
+          <div><label>Destination Address</label><input type="text" required placeholder="Delivery City"></div>
+          <div>
+            <label>Service Priority</label>
+            <select id="serviceLevel" onchange="updateWeightOnly()" required>
+              <option value="Standard">Standard Ground</option>
+              <option value="Express">Express Courier</option>
+              <option value="Heavy">Heavy Haulage</option>
+            </select>
+          </div>
+          <div>
+            <label>Transportation Mechanism</label>
+            <select id="transportMechanism" required>
+              <option value="" disabled selected>Select Mechanism</option>
+              <option value="Road">Road Transportation</option>
+              <option value="Water">Water (Sea) Freight</option>
+              <option value="Air">Air Freight</option>
+              <option value="Rail">Rail Logistics</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section" id="step3">
+        <h3 style="color: var(--primary);">Step 3: Cargo Manifest</h3>
+        <table class="cargo-table" id="cargoTable">
+          <thead>
+            <tr><th>Description</th><th>Qty</th><th>Weight (kg)</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Item:"><input type="text" placeholder="Box/Crate" required></td>
+              <td data-label="Qty:"><input type="number" class="qty" value="1" oninput="updateWeightOnly()" required></td>
+              <td data-label="Weight:"><input type="number" class="weight" placeholder="0" oninput="updateWeightOnly()" required></td>
+              <td data-label="Remove:"><button type="button" onclick="deleteRow(this)" style="color:red; border:none; background:none; cursor:pointer;"><i class="fa-solid fa-trash"></i></button></td>
+            </tr>
+          </tbody>
+        </table>
+        <button type="button" class="btn-add" onclick="addRow()" style="margin-bottom: 25px;"><i class="fa-solid fa-plus"></i> Add Item Row</button>
+
+        <label>Cargo Verification Photos</label>
+        <div class="photo-upload-zone" onclick="document.getElementById('cargoPhotos').click()">
+          <i class="fa-solid fa-camera" style="font-size: 2rem; color: var(--primary);"></i>
+          <p style="font-size: 0.8rem; margin: 10px 0 0;">Tap to Upload Photos</p>
+          <input type="file" id="cargoPhotos" multiple accept="image/*" style="display:none" onchange="previewPhotos()">
+        </div>
+        <div class="photo-preview-container" id="photoPreview"></div>
+      </div>
+
+      <div class="form-section" id="step4">
+        <h3 style="color: var(--primary);">Step 4: Final Declaration</h3>
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border: 1px solid #ddd;">
+          <p style="font-size: 0.85rem; line-height: 1.5;"><strong>Terms:</strong> I certify that these goods do not contain hazardous materials or prohibited liquids.</p>
+          <label><input type="checkbox" style="width: auto;" required id="termsCheck"> I authorize MoveCare to process this request.</label>
+        </div>
+      </div>
+
+      <div id="resultScreen">
+          <div id="resultIcon" class="result-icon"></div>
+          <h2 id="resultTitle">Processing...</h2>
+          <p id="resultText"></p>
+          <p class="countdown-timer" id="timerText">Page will reset in 30 seconds...</p>
+      </div>
+
+      <div class="nav-buttons" id="navBtns">
+        <button type="button" class="btn btn-prev" id="prevBtn" onclick="changeStep(-1)" disabled>Back</button>
+        <button type="button" class="btn btn-next" id="nextBtn" onclick="changeStep(1)">Next Step</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    let currentStep = 1;
+
+    // Phone Validation
+    function validatePhone(input) {
+      const phoneRegex = /^\+?[1-9]\d{6,14}$/;
+      if (phoneRegex.test(input.value.replace(/\s/g, ""))) {
+        input.classList.remove('invalid');
+        return true;
+      } else {
+        input.classList.add('invalid');
+        return false;
+      }
+    }
+
+    // Comprehensive Step Validation
+    function validateCurrentStep() {
+      const activeSection = document.querySelector(`.form-section#step${currentStep}`);
+      const requiredFields = activeSection.querySelectorAll('[required]');
+      let isValid = true;
+
+      requiredFields.forEach(field => {
+        const isFieldEmpty = !field.value.trim();
+        const isCheckboxUnchecked = (field.type === 'checkbox' && !field.checked);
+       
+        let isPhoneFieldInvalid = false;
+        if (field.id === 'custPhone') {
+          isPhoneFieldInvalid = !/^\+?[1-9]\d{6,14}$/.test(field.value.replace(/\s/g, ""));
+        }
+
+        if (isFieldEmpty || isCheckboxUnchecked || isPhoneFieldInvalid) {
+          field.classList.add('invalid');
+          isValid = false;
+        } else {
+          field.classList.remove('invalid');
+        }
+      });
+
+      if (!isValid) {
+        triggerSMS("Validation Error", "Please correct the highlighted fields.", true);
+      }
+      return isValid;
+    }
+
+    function changeStep(dir) {
+      if (dir === 1 && !validateCurrentStep()) return;
+
+      const sections = document.querySelectorAll('.form-section');
+      const steps = document.querySelectorAll('.step-item');
+     
+      sections[currentStep - 1].classList.remove('active');
+      steps[currentStep - 1].classList.remove('active');
+      currentStep += dir;
+
+      if (currentStep > 4) {
+        processSubmission();
+        currentStep = 4;
+        return;
+      }
+
+      sections[currentStep - 1].classList.add('active');
+      steps[currentStep - 1].classList.add('active');
+      document.getElementById('prevBtn').disabled = (currentStep === 1);
+      document.getElementById('nextBtn').innerText = (currentStep === 4) ? "Submit Request" : "Next Step";
+    }
+
+    function processSubmission() {
+      // Hide everything else
+      document.getElementById('step4').style.display = 'none';
+      document.getElementById('navBtns').style.display = 'none';
+      document.getElementById('wizardBar').style.opacity = '0.2';
+      document.getElementById('statsBar').style.opacity = '0.2';
+     
+      const resultScreen = document.getElementById('resultScreen');
+      const resultIcon = document.getElementById('resultIcon');
+      const resultTitle = document.getElementById('resultTitle');
+      const resultText = document.getElementById('resultText');
+     
+      resultScreen.style.display = 'block';
+
+      // Simulation of submission
+      setTimeout(() => {
+        const isSuccess = true; // Set to false to test the ❌ state
+        const ref = "MC-" + Math.floor(1000 + Math.random() * 9000);
+
+        if(isSuccess) {
+            resultIcon.innerHTML = '<i class="fa-solid fa-circle-check success-icon"></i>';
+            resultTitle.innerText = "SUCCESSFULLY SENT";
+            resultTitle.style.color = "#27ae60";
+            resultText.innerHTML = `Your shipment request <strong>${ref}</strong> has been received.<br>A confirmation SMS was sent to your phone.`;
+            triggerSMS("Booking Confirmed", "Habari! Your MoveCare request " + ref + " is successful. We will call you shortly.");
+        } else {
+            resultIcon.innerHTML = '<i class="fa-solid fa-circle-xmark error-icon"></i>';
+            resultTitle.innerText = "SUBMISSION FAILED";
+            resultTitle.style.color = "#ff4d4d";
+            resultText.innerText = "We were unable to process your request at this time. Please check your internet and try again.";
+            triggerSMS("Error", "Unable to send your request. Please try again.", true);
+        }
+
+        // Start 30 second countdown
+        startResetTimer(30);
+
+      }, 2000);
+    }
+
+    function startResetTimer(seconds) {
+        const timerDisplay = document.getElementById('timerText');
+        let timeLeft = seconds;
+
+        const countdown = setInterval(() => {
+            timeLeft--;
+            timerDisplay.innerText = `Page will reset in ${timeLeft} seconds...`;
+           
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                location.reload(); // Refresh the page
+            }
+        }, 1000);
+    }
+
+    // The rest of your existing logic (Add row, update weight, photo preview)
+    function addRow() {
+      const table = document.getElementById('cargoTable').getElementsByTagName('tbody')[0];
+      const newRow = table.insertRow();
+      newRow.innerHTML = `
+        <td data-label="Item:"><input type="text" placeholder="Item" required></td>
+        <td data-label="Qty:"><input type="number" class="qty" value="1" oninput="updateWeightOnly()" required></td>
+        <td data-label="Weight:"><input type="number" class="weight" placeholder="0" oninput="updateWeightOnly()" required></td>
+        <td data-label="Remove:"><button type="button" onclick="deleteRow(this)" style="color:red; border:none; background:none; cursor:pointer;"><i class="fa-solid fa-trash"></i></button></td>
+      `;
+    }
+
+    function deleteRow(btn) { btn.closest('tr').remove(); updateWeightOnly(); }
+
+    function updateWeightOnly() {
+      const rows = document.querySelectorAll('#cargoTable tbody tr');
+      let totalW = 0;
+      rows.forEach(row => {
+        const q = row.querySelector('.qty').value || 0;
+        const w = row.querySelector('.weight').value || 0;
+        totalW += (q * w);
+      });
+      document.getElementById('liveWeight').innerText = totalW + " kg";
+      document.getElementById('liveService').innerText = document.getElementById('serviceLevel').value;
+    }
+
+    function previewPhotos() {
+      const container = document.getElementById('photoPreview');
+      container.innerHTML = "";
+      const files = document.getElementById('cargoPhotos').files;
+      for (let file of files) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.className = "preview-img";
+          container.appendChild(img);
+        }
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function triggerSMS(title, body, isError = false) {
+      const sms = document.getElementById('smsNotification');
+      document.getElementById('smsTitle').innerText = title;
+      document.getElementById('smsBody').innerText = body;
+      sms.style.borderLeftColor = isError ? "#ff4d4d" : "#27ae60";
+      sms.classList.add('show');
+      setTimeout(() => sms.classList.remove('show'), 5000);
+    }
+  </script>
+</body>
+</html>
